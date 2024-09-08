@@ -4,6 +4,7 @@ from validate_docbr import CPF, CNPJ
 from backend.search_cpf import buscar_pessoa_por_cpf
 from backend.send_message import send_sms
 import asyncio
+import os
 
 # Página Base
 class BasePage:
@@ -354,4 +355,4 @@ if __name__ == "__main__":
     def main(page: Page):
         app = MyApp(page)
 
-    flet.app(target=main, view=flet.WEB_BROWSER)
+    flet.app(target=main, view=flet.WEB_BROWSER, port=int(os.getenv("PORT", 8000)))
