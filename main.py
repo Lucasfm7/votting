@@ -5,7 +5,6 @@ from backend.search_cpf import buscar_pessoa_por_cpf
 from backend.send_message import send_sms
 import asyncio
 
-
 # Página Base
 class BasePage:
     def __init__(self, page: Page):
@@ -351,8 +350,8 @@ class MyApp:
             self.current_page = SelecaoCandidatoPage(self.page, self.navigate)
 
         self.current_page.build()
+if __name__ == "__main__":
+    def main(page: Page):
+        app = MyApp(page)
 
-def main(page: Page):
-    app = MyApp(page)
-
-flet.app(target=main, view=flet.WEB_BROWSER)
+    flet.app(target=main, view=flet.WEB_BROWSER)
