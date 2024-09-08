@@ -5,3 +5,4 @@ flet==0.23.2 #
 flet-core==0.23.2 #
 flet-runtime==0.23.2 #
 requests==2.32.3 #
+validate-docbr==1.10.0 #
