@@ -5,6 +5,7 @@ from backend.search_cpf import buscar_pessoa_por_cpf
 from backend.send_message import send_sms
 import asyncio
 
+
 # Página Base
 class BasePage:
     def __init__(self, page: Page):
