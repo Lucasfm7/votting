@@ -10,45 +10,67 @@ import os
 class BasePage:
     def __init__(self, page: Page):
         self.page = page
+        self.page.bgcolor = "#F2F2F2"
+        self.page.margin = 0
+        self.page.padding = 0
         self.loading_indicator = ProgressBar(visible=False, width=self.page.width, color=colors.RED, border_radius=20, height=10)
 
     def build_shared_content(self, controls):
-        # Logo principal no topo
+        # Imagem que ocupa o topo da tela, utilizando toda a largura
+        imagem_topo = Image(
+            src="header.jpeg",  # Imagem de placeholder para o topo
+            width=self.page.width,
+            height=150,
+            fit=ImageFit.COVER
+        )
+
+        # Logo principal
         logo_principal = Image(
-            src="Logo_Destaques.png",  # Imagem principal
-            width=200,
-            height=200
+            src="logo.png",  # Imagem principal
+            width=150,
+            height=150,
         )
 
-        # Logos de parceria no canto inferior direito
-        logo_parceria_1 = Image(
-            src="Logo_ACIAC.png",  # Logo de parceria 1
-            width=75,
-            height=75
+        # Logo secundária
+        logo_secundaria = Image(
+            src="realizacao_aciac.jpeg",  # Logo de parceria 1
+            width=250,
+            height=100
         )
 
-        # Coluna principal com conteúdo e logos de parceria
+        # Imagem do rodapé que ocupa toda a largura
+        imagem_rodape = Image(
+            src="footer.jpeg",  # Imagem de placeholder para o rodapé
+            width=self.page.width,
+            height=100,
+            fit=ImageFit.COVER,
+        )
+
+        # Coluna principal com o conteúdo, logo principal e logo secundária
         return Column(
             controls=[
+                imagem_topo,  # Imagem no topo
+                Container(expand=True),
                 Container(
-                    content=logo_principal,  # O logo principal deve estar dentro de um Container ou diretamente
+                    content=logo_principal,  # O logo principal
                     alignment=alignment.center,  # Alinha o logo ao centro
-                    margin=margin.only(bottom=20),  # Adiciona um espaçamento entre o logo e o conteúdo abaixo
+                    margin=0,  # Adiciona um espaçamento entre o logo e o conteúdo abaixo
+                    padding=0,
                 ),
-                *controls,  # Adiciona os outros controles abaixo do logo
+                Container(expand=True),
+                *controls,  # Adiciona os controles, como TextField e botões
+                Container(expand=True),
                 Container(
-                    content=Row(
-                        controls=[logo_parceria_1],
-                        alignment=MainAxisAlignment.END,
-                        spacing=10
-                    ),
-                    alignment=alignment.bottom_right,  # Alinha o logo de parceria na parte inferior direita
-                    expand=True  # Faz com que o container preencha o espaço disponível
+                    content=logo_secundaria,  # Logo secundária abaixo do botão
+                    alignment=alignment.center,
+                    margin=0,  # Adiciona um espaçamento entre o logo e o conteúdo abaixo
+                    padding=0
                 ),
+                Container(expand=True),
+                imagem_rodape  # Imagem no rodapé
             ],
             alignment=MainAxisAlignment.CENTER,
             horizontal_alignment=CrossAxisAlignment.CENTER,
-            spacing=10,
             expand=True,
         )
 
@@ -121,10 +143,10 @@ class NomeSobrenomeTelefonePage(BasePage):
     def build(self):
         nome_field = TextField(label="Nome", width=300, border_color=colors.GREY_300, focused_border_color=colors.RED, autofocus=True)
         sobrenome_field = TextField(label="Sobrenome", width=300, border_color=colors.GREY_300, focused_border_color=colors.RED)
-        telefone_field = TextField(label="Telefone (DDI DDD Número)", width=300, border_color=colors.GREY_300, focused_border_color=colors.RED)
+        telefone_field = TextField(prefix_text="+55 ", label="Telefone (DDI DDD Número)", width=300, border_color=colors.GREY_300, focused_border_color=colors.RED)
 
         botao_enviar = CupertinoButton(
-            text="Enviar", color=colors.WHITE, bgcolor=colors.RED, on_click=lambda e: self.enviar_telefone(telefone_field.value), width=300
+            text="Enviar", color=colors.WHITE, bgcolor=colors.RED, on_click=lambda e: self.enviar_telefone(f"+55{telefone_field.value}"), width=300
         )
 
         container = Container(
@@ -188,7 +210,8 @@ class VerificacaoCodigoPage(BasePage):
         self.page.add(
             Column(
                 controls=[self.loading_indicator, container],
-                alignment=MainAxisAlignment.START, expand=True
+                alignment=MainAxisAlignment.START,
+                expand=True
             )
         )
 
@@ -206,6 +229,13 @@ class VerificacaoCodigoPage(BasePage):
             self.loading_indicator.visible = False
             self.mostrar_mensagem_temporaria("Código incorreto. Tente novamente.")
 
+    def mostrar_mensagem_temporaria(self, mensagem):
+        # Adicionando a função para exibir a mensagem temporária como um SnackBar
+        snack_bar = SnackBar(Text(mensagem))
+        self.page.overlay.append(snack_bar)  # Use overlay para adicionar o SnackBar
+        snack_bar.open = True
+        self.page.update()
+
 # Página de Seleção de Candidatos (Votação)
 class SelecaoCandidatoPage(BasePage):
     def __init__(self, page: Page, navigate):
@@ -219,32 +249,27 @@ class SelecaoCandidatoPage(BasePage):
 
         # Função para criar o efeito de zoom, borda arredondada e cor ao passar o mouse sobre a imagem
         def create_candidate_image(candidato):
-            # Verificando se o nome do candidato existe, senão atribuímos um nome fictício
             nome_candidato = candidato if candidato else "Candidato Desconhecido"
-            
-            # Gerando uma imagem fictícia de exemplo
             image = Image(
-                src=f"https://placehold.co/150x150?text={nome_candidato}&grayscale",  # Usando imagens de exemplo em preto e branco
-                width=200,
-                height=200,
+                src=f"https://placehold.co/150x150?text={nome_candidato}&grayscale",
+                width=150,
+                height=150,
                 fit=ImageFit.COVER,
-                scale=1.0,  # Inicia com a escala normal
-                animate_scale=500  # Animação de zoom
+                scale=1.0,
+                animate_scale=500
             )
 
-            # Quando o mouse entra, remove o efeito de grayscale e aumenta o zoom
+            # Funções de hover
             def on_mouse_enter(e):
-                image.src = f"https://placehold.co/150x150?text={nome_candidato}"  # Remove o grayscale
-                image.scale = 1.2  # Aumenta o zoom
+                image.src = f"https://placehold.co/150x150?text={nome_candidato}"
+                image.scale = 1.2
                 image.update()
 
-            # Quando o mouse sai, volta ao estado preto e branco e remove o zoom
             def on_mouse_exit(e):
-                image.src = f"https://placehold.co/150x150?text={nome_candidato}&grayscale"  # Aplica o grayscale novamente
-                image.scale = 1.0  # Volta ao zoom normal
+                image.src = f"https://placehold.co/150x150?text={nome_candidato}&grayscale"
+                image.scale = 1.0
                 image.update()
 
-            # Adicionando eventos de mouse
             image.on_hover = on_mouse_enter
             image.on_hover_exit = on_mouse_exit
 
@@ -252,36 +277,38 @@ class SelecaoCandidatoPage(BasePage):
             return Container(
                 content=image,
                 alignment=alignment.center,
-                width=200,
-                height=200,
+                width=150,
+                height=150,
                 padding=10,
-                border_radius=border_radius.all(10),  # Borda arredondada
-                border=border.all(2, colors.GREY_400),  # Borda cinza clara
-                on_click=lambda e: self.selecionar_candidato(nome_candidato)  # Seleciona o candidato ao clicar
+                border_radius=border_radius.all(10),
+                border=border.all(2, colors.GREY_400),
+                on_click=lambda e: self.selecionar_candidato(nome_candidato)
             )
 
-        # Criar a grid de 5 colunas e 3 linhas
-        rows = []
-        for i in range(0, len(candidatos), 5):  # Agrupa 5 candidatos por linha
-            row = Row(
-                controls=[create_candidate_image(c) for c in candidatos[i:i + 5]],
-                alignment=MainAxisAlignment.CENTER,
-                spacing=10
-            )
-            rows.append(row)
+        # GridView para ajustar os candidatos automaticamente de forma responsiva
+        grid_view = GridView(
+            controls=[create_candidate_image(c) for c in candidatos],
+            runs_count=5,  # 5 colunas por linha em telas maiores
+            max_extent=200,  # Ajusta automaticamente dependendo do tamanho da tela
+            spacing=10,
+            run_spacing=10
+        )
 
         botao_confirmar_voto = CupertinoButton(
             text="Confirmar Voto", color=colors.WHITE, bgcolor=colors.GREEN, on_click=self.confirmar_voto, width=300
         )
 
-        container = Container(
-            content=self.build_shared_content([*rows, botao_confirmar_voto]),  # Adiciona todas as linhas à página
-            alignment=alignment.center,
-            expand=True,
-            opacity=0.0,  # Começa com opacidade 0 para o efeito de fade-in
-            animate_opacity=1000  # Anima a opacidade ao longo de 1000ms
+        # Container principal com rolagem
+        container = Column(
+            controls=[
+                grid_view,  # O GridView com os candidatos
+                botao_confirmar_voto  # Botão de confirmação
+            ],
+            alignment=MainAxisAlignment.CENTER,
+            scroll=ScrollMode.AUTO  # Habilita a rolagem para o conteúdo
         )
 
+        # Limpar e adicionar o conteúdo à página
         self.page.add(
             Column(
                 controls=[self.loading_indicator, container],
@@ -290,13 +317,14 @@ class SelecaoCandidatoPage(BasePage):
             )
         )
 
+        # Atualizar a opacidade após adicionar o container
         container.opacity = 1.0
         container.update()
 
     def selecionar_candidato(self, candidato):
         self.selected_candidate = candidato
         print(f"Candidato selecionado: {self.selected_candidate}")
-        
+
     def confirmar_voto(self, e):
         if self.selected_candidate:
             dialog = AlertDialog(
@@ -308,8 +336,7 @@ class SelecaoCandidatoPage(BasePage):
                 ],
                 actions_alignment=MainAxisAlignment.END,
             )
-            
-            # Usando Page.overlay.append() em vez de self.page.dialog
+
             self.page.overlay.append(dialog)
             dialog.open = True
             self.page.update()
@@ -317,13 +344,19 @@ class SelecaoCandidatoPage(BasePage):
             self.mostrar_mensagem_temporaria("Selecione um candidato antes de confirmar o voto.")
 
     def cancelar_confirmacao(self, e):
-        self.page.overlay.clear()  # Remove o diálogo do overlay
+        self.page.overlay.clear()
         self.page.update()
 
     def finalizar_voto(self, e):
-        self.page.overlay.clear()  # Remove o diálogo do overlay
-        self.page.clean()
-        self.page.add(Text(f"Voto em {self.selected_candidate} confirmado! Obrigado por votar.", size=24, color=colors.GREEN))
+        self.page.overlay.clear()
+        dialog = AlertDialog(
+            title=Text("Voto Confirmado"),
+            content=Text(f"Voto em {self.selected_candidate} confirmado! Obrigado por votar."),
+            actions=[TextButton("Fechar", on_click=lambda e: self.page.clean())],
+            actions_alignment=MainAxisAlignment.END,
+        )
+        self.page.overlay.append(dialog)
+        dialog.open = True
         self.page.update()
 
 
