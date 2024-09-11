@@ -5,6 +5,8 @@ from backend.search_cpf import buscar_pessoa_por_cpf
 from backend.send_message import send_sms
 import asyncio
 import os
+import random  # Para gerar o código aleatório de validação
+
 
 # Página Base
 class BasePage:
@@ -74,6 +76,7 @@ class BasePage:
             expand=True,
         )
 
+
 # Página de Validação de CPF/CNPJ
 class CPFValidatorPage(BasePage):
     def __init__(self, page: Page, navigate):
@@ -81,15 +84,17 @@ class CPFValidatorPage(BasePage):
         self.navigate = navigate
         self.input_field = None
         self.output_text = None
+        self.name = None
+        self.company = None
 
     def build(self):
-        titulo = Text(value="Digite seu CPF ou CNPJ", text_align=TextAlign.CENTER, size=20)
+        titulo = Text(value="Digite seu CPF ou CNPJ", text_align=TextAlign.LEFT, size=14, color=colors.GREY_500)
         self.input_field = TextField(
-            label="", width=300, text_align=TextAlign.LEFT,
+            width=300, text_align=TextAlign.LEFT,
             border_color=colors.GREY_300, focused_border_color=colors.RED,
             border_width=1, focused_border_width=2,
-            autofocus=True,  # Foco automático ao iniciar a página
-            on_submit=self.verificar_cpf  # Acionar o botão ao pressionar Enter
+            autofocus=True,
+            on_submit=lambda e: self.verificar_cpf(None)
         )
         self.output_text = Text("", color=colors.RED)
 
@@ -99,7 +104,11 @@ class CPFValidatorPage(BasePage):
 
         container = Container(
             content=self.build_shared_content([
-                titulo, self.input_field, self.output_text, botao_avancar
+                Column(
+                    controls=[titulo, self.input_field],
+                    spacing=5,
+                ),
+                self.output_text, botao_avancar
             ]),
             alignment=alignment.center, expand=True,
             opacity=0.0, animate_opacity=1000
@@ -125,25 +134,47 @@ class CPFValidatorPage(BasePage):
         loop.run_until_complete(self.processar_verificacao(cpf))
 
     async def processar_verificacao(self, cpf):
-        resultado = buscar_pessoa_por_cpf(cpf)
-        self.loading_indicator.visible = False
-
+        # Simulação da busca de pessoa por CPF (use a função real em produção)
+        resultado = buscar_pessoa_por_cpf(cpf)  # Supondo que esta função retorna um dicionário
         if resultado:
-            self.navigate('nome_sobrenome_telefone')
+            self.name = resultado['nome']
+            self.company = resultado['empresa']
+            self.loading_indicator.visible = False
+            # Passa os valores de name e company para a próxima página
+            self.navigate('nome_sobrenome_telefone', self.name, self.company)
         else:
+            self.loading_indicator.visible = False
             self.output_text.value = "CPF não encontrado ou erro na requisição."
         self.page.update()
 
 # Página de Nome, Sobrenome e Telefone
 class NomeSobrenomeTelefonePage(BasePage):
-    def __init__(self, page: Page, navigate):
+    def __init__(self, page: Page, navigate, name=None, company=None):
         super().__init__(page)
         self.navigate = navigate
+        self.name = name  # Recebe o nome da pessoa
+        self.company = company  # Recebe o nome da empresa
 
     def build(self):
-        nome_field = TextField(label="Nome", width=300, border_color=colors.GREY_300, focused_border_color=colors.RED, autofocus=True)
-        sobrenome_field = TextField(label="Sobrenome", width=300, border_color=colors.GREY_300, focused_border_color=colors.RED)
-        telefone_field = TextField(prefix_text="+55 ", label="Telefone (DDI DDD Número)", width=300, border_color=colors.GREY_300, focused_border_color=colors.RED)
+        # Texto "Bem-vindo(a)"
+        titulo_bemvindo = Text(value="Bem-vindo(a)", text_align=TextAlign.CENTER, size=14, color=colors.GREY_500)
+        
+        # Verifica se `company` ou `name` foram passados e os exibe em uma linha separada
+        if self.company:
+            titulo_nome = Text(value=f"{self.company}", text_align=TextAlign.CENTER, size=14, color=colors.GREY_500)
+        elif self.name:
+            titulo_nome = Text(value=f"{self.name}", text_align=TextAlign.CENTER, size=14, color=colors.GREY_500)
+        else:
+            titulo_nome = Text(value="", text_align=TextAlign.CENTER, size=14, color=colors.GREY_500)
+
+        nome_titulo = Text(value="Nome", text_align=TextAlign.LEFT, size=14, color=colors.GREY_500)
+        nome_field = TextField(width=300, border_color=colors.GREY_300, focused_border_color=colors.RED, autofocus=True)
+
+        sobrenome_titulo = Text(value="Sobrenome", text_align=TextAlign.LEFT, size=14, color=colors.GREY_500)
+        sobrenome_field = TextField(width=300, border_color=colors.GREY_300, focused_border_color=colors.RED)
+
+        telefone_titulo = Text(value="DDD + Telefone (que receberá SMS)", text_align=TextAlign.LEFT, size=14, color=colors.GREY_500)
+        telefone_field = TextField(prefix_text="+55 ", width=300, border_color=colors.GREY_300, focused_border_color=colors.RED)
 
         botao_enviar = CupertinoButton(
             text="Enviar", color=colors.WHITE, bgcolor=colors.RED, on_click=lambda e: self.enviar_telefone(f"+55{telefone_field.value}"), width=300
@@ -151,7 +182,8 @@ class NomeSobrenomeTelefonePage(BasePage):
 
         container = Container(
             content=self.build_shared_content([
-                nome_field, sobrenome_field, telefone_field, botao_enviar
+                Column(controls=[titulo_bemvindo, titulo_nome, nome_titulo, nome_field, sobrenome_titulo, sobrenome_field, telefone_titulo, telefone_field], spacing=5),
+                botao_enviar
             ]),
             alignment=alignment.center, expand=True,
             opacity=0.0, animate_opacity=1000
@@ -167,42 +199,76 @@ class NomeSobrenomeTelefonePage(BasePage):
         container.opacity = 1.0
         container.update()
 
+
     def enviar_telefone(self, telefone):
         self.loading_indicator.visible = True
         self.page.update()
 
-        codigo_enviado = send_sms(telefone)
+        # Apenas imprime o código gerado em vez de enviar SMS
+        codigo_enviado = random.randint(100000, 999999)
+        print(f"Código de validação gerado: {codigo_enviado}")
 
         self.loading_indicator.visible = False
 
         if codigo_enviado:
             self.navigate('verificacao_codigo', codigo_enviado)
         else:
-            self.mostrar_mensagem_temporaria("Erro ao enviar o SMS. Tente novamente.")
+            self.mostrar_mensagem_temporaria("Erro ao gerar o código. Tente novamente.")
 
     def mostrar_mensagem_temporaria(self, mensagem):
         snack_bar = SnackBar(Text(mensagem))
-        self.page.overlay.append(snack_bar)  # Use overlay para adicionar o SnackBar
+        self.page.overlay.append(snack_bar)
         snack_bar.open = True
         self.page.update()
 
-# Página de Verificação de Código
+
+# Página de Verificação de Código com Caixinhas Separadas
 class VerificacaoCodigoPage(BasePage):
     def __init__(self, page: Page, codigo_enviado, navigate):
         super().__init__(page)
         self.codigo_enviado = codigo_enviado
         self.navigate = navigate
+        self.input_fields = []
 
     def build(self):
-        codigo_field = TextField(label="Digite o código recebido", width=300, border_color=colors.GREY_300, focused_border_color=colors.RED, autofocus=True)
+        # Função que verifica o código quando os 6 dígitos são inseridos
+        def verificar_codigo(e):
+            codigo_inserido = ''.join([field.value for field in self.input_fields])
+            self.loading_indicator.visible = True
+            self.page.update()
+
+            if codigo_inserido == str(self.codigo_enviado):
+                self.loading_indicator.visible = False
+                self.navigate('selecao_candidato')
+            else:
+                self.loading_indicator.visible = False
+                self.mostrar_mensagem_temporaria("Código incorreto. Tente novamente.")
+
+        # Função para mudar o foco para o próximo campo
+        def on_digit_entered(e, index):
+            if len(self.input_fields[index].value) == 1 and index < 5:
+                self.input_fields[index + 1].focus()
+            elif index == 5:
+                verificar_codigo(None)
+
+        # Criação das caixinhas
+        row = Row(spacing=10, alignment=MainAxisAlignment.CENTER)
+        for i in range(6):
+            field = TextField(
+                width=41, height=60, text_align=TextAlign.CENTER,
+                on_change=lambda e, idx=i: on_digit_entered(e, idx),
+                border_color=colors.GREY_300, focused_border_color=colors.RED
+            )
+            self.input_fields.append(field)
+            row.controls.append(field)
 
         botao_verificar = CupertinoButton(
-            text="Verificar Código", color=colors.WHITE, bgcolor=colors.RED, 
-            on_click=lambda e: self.verificar_codigo(codigo_field.value), width=300
+            text="Verificar Código", color=colors.WHITE, bgcolor=colors.RED,
+            on_click=verificar_codigo, width=300
         )
 
         container = Container(
-            content=self.build_shared_content([codigo_field, botao_verificar]),
+            content=self.build_shared_content([row, botao_verificar]),
             alignment=alignment.center, expand=True,
             opacity=0.0, animate_opacity=1000
         )
@@ -210,29 +276,16 @@ class VerificacaoCodigoPage(BasePage):
         self.page.add(
             Column(
                 controls=[self.loading_indicator, container],
-                alignment=MainAxisAlignment.START,
-                expand=True
+                alignment=MainAxisAlignment.START, expand=True
             )
         )
 
         container.opacity = 1.0
         container.update()
 
-    def verificar_codigo(self, codigo_inserido):
-        self.loading_indicator.visible = True
-        self.page.update()
-
-        if codigo_inserido.strip() == str(self.codigo_enviado):
-            self.loading_indicator.visible = False
-            self.navigate('selecao_candidato')  # Certifica-se que navega para a próxima página
-        else:
-            self.loading_indicator.visible = False
-            self.mostrar_mensagem_temporaria("Código incorreto. Tente novamente.")
-
     def mostrar_mensagem_temporaria(self, mensagem):
-        # Adicionando a função para exibir a mensagem temporária como um SnackBar
         snack_bar = SnackBar(Text(mensagem))
-        self.page.overlay.append(snack_bar)  # Use overlay para adicionar o SnackBar
+        self.page.overlay.append(snack_bar)
         snack_bar.open = True
         self.page.update()
 
@@ -242,84 +295,75 @@ class SelecaoCandidatoPage(BasePage):
         super().__init__(page)
         self.navigate = navigate
         self.selected_candidate = None
+        self.candidatos = [f"Candidato {i+1}" for i in range(15)]
+        self.column_count = 1
 
     def build(self):
-        # 15 candidatos; caso o nome não esteja disponível, usamos um padrão "Candidato X"
-        candidatos = [f"Candidato {i+1}" for i in range(15)]  # Lista de candidatos
+        # Configura o redimensionamento dinâmico da página
+        self.page.on_resized = self.on_resized
+        self.display_candidates()
 
-        # Função para criar o efeito de zoom, borda arredondada e cor ao passar o mouse sobre a imagem
-        def create_candidate_image(candidato):
-            nome_candidato = candidato if candidato else "Candidato Desconhecido"
-            image = Image(
-                src=f"https://placehold.co/150x150?text={nome_candidato}&grayscale",
-                width=150,
-                height=150,
-                fit=ImageFit.COVER,
-                scale=1.0,
-                animate_scale=500
-            )
+    def on_resized(self, e):
+        # Obter a largura atual da janela
+        page_width = self.page.window_width
 
-            # Funções de hover
-            def on_mouse_enter(e):
-                image.src = f"https://placehold.co/150x150?text={nome_candidato}"
-                image.scale = 1.2
-                image.update()
+        # Definir o número de colunas com base na largura da janela
+        if page_width < 300:
+            self.column_count = 1
+        elif page_width < 500:
+            self.column_count = 2
+        elif page_width < 700:
+            self.column_count = 3
+        elif page_width < 900:
+            self.column_count = 4
+        else:
+            self.column_count = 5
+        
+        # Atualiza a exibição com o número de colunas calculado
+        self.display_candidates()
 
-            def on_mouse_exit(e):
-                image.src = f"https://placehold.co/150x150?text={nome_candidato}&grayscale"
-                image.scale = 1.0
-                image.update()
+    def display_candidates(self):
+        # Limpa a página para redesenhar os elementos
+        self.page.clean()
 
-            image.on_hover = on_mouse_enter
-            image.on_hover_exit = on_mouse_exit
+        # Container que centraliza os candidatos
+        grid = Column(alignment=MainAxisAlignment.CENTER, horizontal_alignment=CrossAxisAlignment.CENTER, spacing=20)
 
-            # Container com borda arredondada
-            return Container(
-                content=image,
-                alignment=alignment.center,
-                width=150,
-                height=150,
-                padding=10,
-                border_radius=border_radius.all(10),
-                border=border.all(2, colors.GREY_400),
-                on_click=lambda e: self.selecionar_candidato(nome_candidato)
-            )
+        row = Row(alignment=MainAxisAlignment.CENTER, spacing=10)
+        for i, candidato in enumerate(self.candidatos):
+            row.controls.append(self.create_candidate_image(candidato))
+            if (i + 1) % self.column_count == 0:
+                grid.controls.append(row)
+                row = Row(alignment=MainAxisAlignment.CENTER, spacing=10)
 
-        # GridView para ajustar os candidatos automaticamente de forma responsiva
-        grid_view = GridView(
-            controls=[create_candidate_image(c) for c in candidatos],
-            runs_count=5,  # 5 colunas por linha em telas maiores
-            max_extent=200,  # Ajusta automaticamente dependendo do tamanho da tela
-            spacing=10,
-            run_spacing=10
-        )
+        # Adicionar a última linha, se houver candidatos restantes
+        if row.controls:
+            grid.controls.append(row)
 
-        botao_confirmar_voto = CupertinoButton(
-            text="Confirmar Voto", color=colors.WHITE, bgcolor=colors.GREEN, on_click=self.confirmar_voto, width=300
-        )
-
-        # Container principal com rolagem
-        container = Column(
-            controls=[
-                grid_view,  # O GridView com os candidatos
-                botao_confirmar_voto  # Botão de confirmação
-            ],
-            alignment=MainAxisAlignment.CENTER,
-            scroll=ScrollMode.AUTO  # Habilita a rolagem para o conteúdo
-        )
-
-        # Limpar e adicionar o conteúdo à página
+        # Adiciona o layout à página com rolagem automática e centralização
         self.page.add(
             Column(
-                controls=[self.loading_indicator, container],
-                alignment=MainAxisAlignment.START,
-                expand=True
+                controls=[
+                    grid,
+                    CupertinoButton(text="Confirmar Voto", color=colors.WHITE, bgcolor=colors.GREEN, on_click=self.confirmar_voto, width=300)
+                ],
+                alignment=MainAxisAlignment.CENTER,
+                expand=True,
+                scroll=ScrollMode.AUTO  # Permitir rolagem
             )
         )
 
-        # Atualizar a opacidade após adicionar o container
-        container.opacity = 1.0
-        container.update()
+    def create_candidate_image(self, candidato):
+        nome_candidato = candidato if candidato else "Candidato Desconhecido"
+        return Container(
+            content=Image(src=f"https://placehold.co/100x200?text={nome_candidato}&grayscale", width=100, height=200),
+            alignment=alignment.center,
+            width=100,
+            height=200,
+            border_radius=border_radius.all(10),
+            border=border.all(2, colors.GREY_400),
+            on_click=lambda e: self.selecionar_candidato(nome_candidato)
+        )
 
     def selecionar_candidato(self, candidato):
         self.selected_candidate = candidato
@@ -330,13 +374,9 @@ class SelecaoCandidatoPage(BasePage):
             dialog = AlertDialog(
                 title=Text("Confirmação de Voto"),
                 content=Text(f"Você votou em {self.selected_candidate}. Confirma o voto?"),
-                actions=[
-                    TextButton("Cancelar", on_click=self.cancelar_confirmacao),
-                    TextButton("Confirmar", on_click=self.finalizar_voto)
-                ],
+                actions=[TextButton("Cancelar", on_click=self.cancelar_confirmacao), TextButton("Confirmar", on_click=self.finalizar_voto)],
                 actions_alignment=MainAxisAlignment.END,
             )
-
             self.page.overlay.append(dialog)
             dialog.open = True
             self.page.update()
@@ -369,7 +409,6 @@ class MyApp:
         self.page.padding = 10
 
         self.current_page = None
-
         self.navigate('cpf_validator')  # Inicia na página de CPF/CNPJ
 
     def navigate(self, page_name, *args):
@@ -377,13 +416,14 @@ class MyApp:
         if page_name == 'cpf_validator':
             self.current_page = CPFValidatorPage(self.page, self.navigate)
         elif page_name == 'nome_sobrenome_telefone':
-            self.current_page = NomeSobrenomeTelefonePage(self.page, self.navigate)
+            self.current_page = NomeSobrenomeTelefonePage(self.page, self.navigate, *args)  # Passa nome e empresa
         elif page_name == 'verificacao_codigo':
             self.current_page = VerificacaoCodigoPage(self.page, args[0], self.navigate)
         elif page_name == 'selecao_candidato':
             self.current_page = SelecaoCandidatoPage(self.page, self.navigate)
 
         self.current_page.build()
+
 if __name__ == "__main__":
     def main(page: Page):
         app = MyApp(page)
